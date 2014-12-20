@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="js/jquery-1.11.1.min.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="js/bootstrap.min.js"></script>
+  </head>
+
+  <body>
+    <div id="container" style="margin-left:auto;margin-right:auto;width:320px;">
+
+      <form id="searchPanel" name="searchForm">
+        <div style="margin-top:10px;margin-bottom:10px;margin-left:2px;margin-right:2px;" class="form-group">
+          <div class="row">
+            <div class="col-xs-8">
+              <input type="text" id="searchText" name="searchText" size="50" class="form-control" placeholder="Input search word"/>
+            </div>
+            <input type="button" id="searchButton" value="search" onclick="searchVideo();" disabled class="btn btn-default"/>
+          </div>
+        </div>
+      </form>
+
+      <div id="player"></div>
+
+      <div id="controlPanel" style="margin-top:5px;margin-bottom:5px;" class="form-group">
+          <input type="button" id="prevButton" value="Prev" onclick="player.previousVideo();" disabled class="btn btn-default"/>
+          <input type="button" id="nextButton" value="Next" onclick="player.nextVideo();" disabled class="btn btn-default"/>
+      </div>
+      <div style="text-align:center;margin-top:-35px;">
+        <span id="statusMessage"></span>
+      </div>
+    </div>
+
+    <script>
+      var tag = document.createElement('script');
+
+      tag.src = "https://www.youtube.com/iframe_api";
+      var firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+      var player;
+      var timer;
+      var isMovingToNext = false;
+
+      $(function(){
+          $("#prevButton").css("visibility", "hidden");
+          $("#nextButton").css("visibility", "hidden");
+          $("#statusMessage").text("loading player..");
+          $("#searchText").keydown(function(e){
+            if (e.keyCode === 13) {
+              searchVideo();
+              return false;
+            }
+          });
+          playerFitSize();
+      });
+
+      function onYouTubeIframeAPIReady() {
+        var player_width = 640;
+        var player_height = 390;
+
+        player_width = $("#player").attr("width");
+        player_height = $("#player").attr("height");
+
+        player = new YT.Player('player',
+          { height: player_height, width: player_width,
+            events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange, 'onError': onErrorFound },
+            playerVars: {
+              "rel":1,         // 関連動画の有無(default:1)
+              "showinfo":1,      // 動画情報表示(default:1)
+              "controls":1      // コントロール有無(default:1)
+            }
+          });
+
+        playerFitSize();
+
+        $("#statusMessage").text("");
+      }
+
+      function playerFitSize()
+      {
+        var player_width = 640;
+        var player_height = 390;
+
+        var win_width = $(window).width();
+        var win_height = $(window).height();
+        var controlPanelHeight = $("#controlPanel").outerHeight(true);
+        var searchPanelHeight = $("#searchPanel").outerHeight(true);
+
+        if (win_width > win_height) {
+          player_height = win_height - controlPanelHeight - searchPanelHeight - 30; // 30:調整値
+          player_width = player_height * 640 / 390;
+        } else {
+          player_width = win_width - 5; // 5:margin
+          player_height = player_width * 390 / 640;
+        }
+
+        $("#container").css("width", player_width + "px");
+        if (player) {
+          player.setSize(player_width, player_height);
+        } else {
+	        $("#player").attr("width", player_width);
+          $("#player").attr("height", player_height);
+        }
+
+      }
+
+      function onPlayerReady(event) {
+        document.getElementById("searchButton").disabled = false;
+        document.getElementById("prevButton").disabled = false;
+        document.getElementById("nextButton").disabled = false;
+
+        tick();
+      }
+
+      function onPlayerStateChange(event) {
+        switch(event.data) {
+          case YT.PlayerState.ENDED: // 0
+            $("#statusMessage").text("media ended");
+            if (isMobileOrTablet()) {
+              if (isMovingToNext === false) {
+                isMovingToNext = true;
+                player.nextVideo();
+                player.previousVideo();
+              }
+            }
+            break;
+          case YT.PlayerState.PLAYING: // 1
+            $("#statusMessage").text("");
+            $("#prevButton").css("visibility", "visible");
+            $("#nextButton").css("visibility", "visible");
+            isMovingToNext = false;
+            break;
+          case YT.PlayerState.PAUSED: // 2
+            $("#statusMessage").text("paused");
+            break;
+          case YT.PlayerState.BUFFERING: // 3
+            $("#statusMessage").text("buffering..");
+            break;
+          case YT.PlayerState.CUED: // 5
+            $("#statusMessage").text("");
+            break;
+          case -1:
+            $("#statusMessage").text("playing..");
+            break;
+        }
+      }
+
+      function onErrorFound(event) {
+        $("#statusMessage").text("error: " + event.data); // エラー番号はhttps://developers.google.com/youtube/iframe_api_reference?hl=ja
+        player.nextVideo();
+      }
+
+      function searchVideo() {
+        var word = document.searchForm.searchText.value;
+
+        if (isMobileOrTablet()) {
+          $("#prevButton").css("visibility", "hidden");
+          $("#nextButton").css("visibility", "hidden");
+          player.cuePlaylist({listType:"search", list:word});
+//          player.loadPlaylist({listType:"search", list:word});
+        } else {
+          player.loadPlaylist({listType:"search", list:word});
+        }
+
+      }
+
+      function tick() {
+          timer = setTimeout(function(){
+            getStatus();
+            tick();
+          }, 100);
+      }
+
+      function getStatus(){
+        if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+          if (player.getCurrentTime() === 0) {
+            $("#statusMessage").text("waiting for video..");
+          } else {
+            $("#statusMessage").text("");
+          }
+        }
+      }
+
+      function isMobileOrTablet() {
+        var ua = navigator.userAgent;
+        return ua.search(/iPad/) !== -1 || ua.search(/iPhone/) !== -1 || ua.search(/Android/) !== -1;
+      }
+
+    </script>
+
+  </body>
+</html>
