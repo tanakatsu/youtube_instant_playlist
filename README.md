@@ -39,6 +39,10 @@ Ant
 Put www folder to your server.
 Then open webapp.html in your browser.
 
+## Demo
+
+[http://momonoki.blob.core.windows.net/app/youtube_instant_playlist/webapp.html]()
+
 ## Known Issues
 
 to be updated..
