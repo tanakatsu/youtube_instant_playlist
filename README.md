@@ -41,7 +41,7 @@ Then open webapp.html in your browser.
 
 ## Demo
 
-[http://momonoki.blob.core.windows.net/app/youtube_instant_playlist/webapp.html]()
+[http://momonoki.blob.core.windows.net/app/youtube_instant_playlist/webapp.html](http://momonoki.blob.core.windows.net/app/youtube_instant_playlist/webapp.html)
 
 ## Known Issues
 
